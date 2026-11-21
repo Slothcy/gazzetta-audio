@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#f7f4ec">
+<title>Sudoku · La Gazzetta del Domani</title>
+<style>
+  @font-face { font-family: "Gotico"; src: url(font/UnifrakturMaguntia-400-latin.woff2) format("woff2"); }
+  @font-face { font-family: "Testata"; font-weight: 700; src: url(font/OldStandardTT-700-latin.woff2) format("woff2"); }
+  @font-face { font-family: "Testata"; font-style: italic; src: url(font/OldStandardTT-400i-latin.woff2) format("woff2"); }
+  @font-face { font-family: "Franklin"; font-weight: 400; src: url(font/LibreFranklin-400-latin.woff2) format("woff2"); }
+  @font-face { font-family: "Franklin"; font-weight: 800; src: url(font/LibreFranklin-800-latin.woff2) format("woff2"); }
+
+  :root {
+    --carta: #f7f4ec; --inchiostro: #121212; --grigio: #6a665e; --tenue: #d9d4c7;
+    --evidenza: #ebe5d6; --stesso: #d6cdb6; --selezione: #121212; --errore: #b3261e; --mia: #1f4e8c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--carta); color: var(--inchiostro); }
+  body { font-family: "Franklin", Helvetica, Arial, sans-serif; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 12px 16px 24px; user-select: none; -webkit-user-select: none; }
+  main { width: 100%; max-width: 480px; }
+
+  header { text-align: center; }
+  .testata { font-family: "Gotico", serif; font-size: clamp(26px, 8.5vw, 38px); line-height: 1.05; }
+  .riga { display: flex; justify-content: space-between; border-top: 1px solid var(--inchiostro); border-bottom: 3px double var(--inchiostro); margin-top: 6px; padding: 4px 0 5px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .riga .tempo { font-variant-numeric: tabular-nums; }
+
+  .griglia { margin: 14px 0 12px; display: grid; grid-template-columns: repeat(9, 1fr); aspect-ratio: 1; border: 2.5px solid var(--inchiostro); background: #fff; }
+  .cella { position: relative; display: flex; align-items: center; justify-content: center; border-right: 1px solid #b9b3a5; border-bottom: 1px solid #b9b3a5; font-family: "Testata", Georgia, serif; font-weight: 700; font-size: clamp(20px, 7vw, 32px); cursor: pointer; }
+  .cella:nth-child(9n) { border-right: none; }
+  .cella:nth-child(n+73) { border-bottom: none; }
+  .cella.bordo-d { border-right: 2.5px solid var(--inchiostro); }
+  .cella.bordo-b { border-bottom: 2.5px solid var(--inchiostro); }
+  .cella.data { color: var(--inchiostro); }
+  .cella.mia { color: var(--mia); font-family: "Franklin", sans-serif; font-weight: 400; }
+  .cella.zona { background: var(--evidenza); }
+  .cella.stesso { background: var(--stesso); }
+  .cella.scelta { background: var(--selezione); color: #fff; }
+  .cella.sbagliata { color: var(--errore); }
+  .cella.sbagliata::after { content: ""; position: absolute; inset: 3px; border: 2px solid var(--errore); pointer-events: none; }
+  .note { position: absolute; inset: 1px; display: grid; grid-template-columns: repeat(3, 1fr); font-family: "Franklin", sans-serif; font-weight: 400; font-size: clamp(8px, 2.5vw, 11px); color: var(--grigio); line-height: 1; }
+  .note span { display: flex; align-items: center; justify-content: center; }
+  .cella.scelta .note { color: #ddd; }
+
+  .comandi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+  .comandi button, .tastiera button { font-family: "Franklin", sans-serif; border: 1.5px solid var(--inchiostro); background: #fff; color: var(--inchiostro); border-radius: 6px; cursor: pointer; }
+  .comandi button { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 10px 2px; }
+  .comandi button.attivo { background: var(--inchiostro); color: #fff; }
+  .tastiera { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; }
+  .tastiera button { font-family: "Testata", Georgia, serif; font-weight: 700; font-size: clamp(20px, 6.5vw, 28px); padding: 10px 0; }
+  .tastiera button.finito { opacity: .25; }
+  button:active { transform: scale(.96); }
+
+  .messaggio { min-height: 22px; margin: 12px 0 4px; text-align: center; font-family: "Testata", Georgia, serif; font-style: italic; font-size: 16px; }
+  .vittoria { display: none; margin-top: 12px; background: var(--inchiostro); color: #fff; padding: 16px; text-align: center; border-radius: 4px; }
+  .vittoria.visibile { display: block; }
+  .vittoria b { display: block; font-family: "Testata", Georgia, serif; font-size: 22px; margin-bottom: 4px; }
+  .piede { margin-top: 18px; font-size: 11px; color: var(--grigio); text-align: center; line-height: 1.5; }
+  .vuoto { text-align: center; margin-top: 40px; font-family: "Testata", Georgia, serif; font-style: italic; font-size: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="testata">La Gazzetta del Domani</div>
+    <div class="riga"><span id="titolo">Sudoku</span><span class="tempo" id="tempo">00:00</span></div>
+  </header>
+
+  <div id="gioco">
+    <div class="griglia" id="griglia" aria-label="Griglia del sudoku"></div>
+    <div class="comandi">
+      <button id="b-note" type="button">✎ Note</button>
+      <button id="b-cancella" type="button">⌫ Cancella</button>
+      <button id="b-annulla" type="button">↶ Annulla</button>
+      <button id="b-controlla" type="button">✓ Controlla</button>
+    </div>
+    <div class="tastiera" id="tastiera"></div>
+    <div class="messaggio" id="messaggio"></div>
+    <div class="vittoria" id="vittoria"><b>Risolto!</b><span id="testo-vittoria"></span></div>
+    <div class="piede">Tocca una casella e poi un numero. «Note» per gli appunti a matita.<br>I progressi restano salvati su questo telefono.</div>
+  </div>
+  <div class="vuoto" id="vuoto" hidden>Apri questa pagina dal link nella Gazzetta del giorno.</div>
+</main>
+
+<script>
+(function () {
+  // Il link della Gazzetta porta la griglia nell'indirizzo: #g=<81 cifre, 0 = vuota>&n=<numero>&l=<livello>
+  const parametri = new URLSearchParams(location.hash.slice(1));
+  const testo = (parametri.get("g") || "").replace(/[^0-9]/g, "");
+  if (testo.length !== 81) {
+    document.getElementById("gioco").hidden = true;
+    document.getElementById("vuoto").hidden = false;
+    return;
+  }
+  const numero = parametri.get("n"), livello = parametri.get("l");
+  document.getElementById("titolo").textContent =
+    "Sudoku" + (numero ? " · N. " + numero : "") + (livello ? " · liv. " + livello : "");
+
+  const date = Array.from(testo, Number);
+  const soluzione = risolvi(date.slice());
+  const chiave = "gazzetta-sudoku-" + testo;
+
+  // ---------- stato, salvato nel telefono ----------
+  let valori = date.slice();
+  let note = Array.from({ length: 81 }, () => []);
+  let secondi = 0, modoNote = false, scelta = -1, storia = [], risolto = false;
+  try {
+    const salvato = JSON.parse(localStorage.getItem(chiave) || "null");
+    if (salvato) { valori = salvato.valori; note = salvato.note; secondi = salvato.secondi || 0; risolto = !!salvato.risolto; }
+  } catch (e) { /* senza memoria si gioca lo stesso */ }
+  function salva() {
+    try { localStorage.setItem(chiave, JSON.stringify({ valori, note, secondi, risolto })); } catch (e) {}
+  }
+
+  // ---------- costruzione della griglia ----------
+  const griglia = document.getElementById("griglia");
+  const celle = [];
+  for (let i = 0; i < 81; i++) {
+    const c = document.createElement("div");
+    const r = Math.floor(i / 9), k = i % 9;
+    c.className = "cella" + (k === 2 || k === 5 ? " bordo-d" : "") + (r === 2 || r === 5 ? " bordo-b" : "");
+    c.addEventListener("click", () => { scelta = i; disegna(); });
+    griglia.appendChild(c);
+    celle.push(c);
+  }
+  const tastiera = document.getElementById("tastiera");
+  const tasti = [];
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = n;
+    b.addEventListener("click", () => inserisci(n));
+    tastiera.appendChild(b); tasti.push(b);
+  }
+
+  // ---------- azioni ----------
+  function inserisci(n) {
+    if (risolto || scelta < 0 || date[scelta]) return;
+    storia.push({ i: scelta, v: valori[scelta], note: note[scelta].slice() });
+    if (modoNote) {
+      if (valori[scelta]) return;
+      const pos = note[scelta].indexOf(n);
+      pos >= 0 ? note[scelta].splice(pos, 1) : note[scelta].push(n);
+    } else {
+      valori[scelta] = valori[scelta] === n ? 0 : n;
+      note[scelta] = [];
+      if (valori[scelta]) togliNote(scelta, n);
+    }
+    pulisciErrori(); salva(); disegna(); verificaFine();
+  }
+  function togliNote(i, n) {
+    // inserito un numero, sparisce dalle note di riga, colonna e quadrato
+    for (let j = 0; j < 81; j++) if (stessaZona(i, j)) note[j] = note[j].filter(x => x !== n);
+  }
+  function cancella() {
+    if (risolto || scelta < 0 || date[scelta]) return;
+    storia.push({ i: scelta, v: valori[scelta], note: note[scelta].slice() });
+    valori[scelta] = 0; note[scelta] = [];
+    pulisciErrori(); salva(); disegna();
+  }
+  function annulla() {
+    const ultimo = storia.pop();
+    if (!ultimo || risolto) return;
+    valori[ultimo.i] = ultimo.v; note[ultimo.i] = ultimo.note; scelta = ultimo.i;
+    pulisciErrori(); salva(); disegna();
+  }
+  let errori = new Set();
+  function controlla() {
+    errori = new Set();
+    for (let i = 0; i < 81; i++) if (valori[i] && soluzione && valori[i] !== soluzione[i]) errori.add(i);
+    const vuote = valori.filter(v => !v).length;
+    scrivi(errori.size
+      ? (errori.size === 1 ? "C'è 1 numero sbagliato." : "Ci sono " + errori.size + " numeri sbagliati.")
+      : "Nessun errore finora" + (vuote ? ": mancano " + vuote + " caselle." : "."));
+    disegna();
+  }
+  function pulisciErrori() { if (errori.size) { errori = new Set(); scrivi(""); } }
+  function scrivi(t) { document.getElementById("messaggio").textContent = t; }
+
+  function verificaFine() {
+    if (!soluzione || valori.some((v, i) => v !== soluzione[i])) return;
+    risolto = true; salva(); scelta = -1; disegna();
+    document.getElementById("testo-vittoria").textContent = "Tempo: " + formatta(secondi) + ". Domani la griglia sarà un filo più difficile.";
+    document.getElementById("vittoria").classList.add("visibile");
+  }
+
+  // ---------- disegno ----------
+  function stessaZona(a, b) {
+    const ra = Math.floor(a / 9), ca = a % 9, rb = Math.floor(b / 9), cb = b % 9;
+    return ra === rb || ca === cb || (Math.floor(ra / 3) === Math.floor(rb / 3) && Math.floor(ca / 3) === Math.floor(cb / 3));
+  }
+  function disegna() {
+    const valoreScelto = scelta >= 0 ? valori[scelta] : 0;
+    for (let i = 0; i < 81; i++) {
+      const c = celle[i];
+      c.classList.toggle("data", !!date[i]);
+      c.classList.toggle("mia", !date[i] && !!valori[i]);
+      c.classList.toggle("scelta", i === scelta);
+      c.classList.toggle("zona", scelta >= 0 && i !== scelta && stessaZona(i, scelta));
+      c.classList.toggle("stesso", !!valoreScelto && i !== scelta && valori[i] === valoreScelto);
+      c.classList.toggle("sbagliata", errori.has(i));
+      if (valori[i]) {
+        c.textContent = valori[i];
+      } else if (note[i].length) {
+        c.innerHTML = '<div class="note">' + [1,2,3,4,5,6,7,8,9].map(n => "<span>" + (note[i].includes(n) ? n : "") + "</span>").join("") + "</div>";
+      } else {
+        c.textContent = "";
+      }
+    }
+    for (let n = 1; n <= 9; n++) tasti[n - 1].classList.toggle("finito", valori.filter(v => v === n).length >= 9);
+    document.getElementById("b-note").classList.toggle("attivo", modoNote);
+    if (risolto) document.getElementById("vittoria").classList.add("visibile");
+  }
+
+  // ---------- cronometro ----------
+  function formatta(s) { return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+  const tempo = document.getElementById("tempo");
+  tempo.textContent = formatta(secondi);
+  setInterval(() => {
+    if (risolto || document.hidden) return;
+    secondi++; tempo.textContent = formatta(secondi);
+    if (secondi % 5 === 0) salva();
+  }, 1000);
+
+  // ---------- comandi e tastiera fisica ----------
+  document.getElementById("b-note").addEventListener("click", () => { modoNote = !modoNote; disegna(); });
+  document.getElementById("b-cancella").addEventListener("click", cancella);
+  document.getElementById("b-annulla").addEventListener("click", annulla);
+  document.getElementById("b-controlla").addEventListener("click", controlla);
+  document.addEventListener("keydown", e => {
+    if (/^[1-9]$/.test(e.key)) inserisci(Number(e.key));
+    else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") cancella();
+    else if (e.key === "n" || e.key === "N") { modoNote = !modoNote; disegna(); }
+    else if (e.key.startsWith("Arrow")) {
+      if (scelta < 0) scelta = 0;
+      const d = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 }[e.key];
+      scelta = (scelta + d + 81) % 81; disegna(); e.preventDefault();
+    }
+  });
+
+  // ---------- risolutore (la soluzione non viaggia nel link) ----------
+  function risolvi(g) {
+    function possibili(i) {
+      const r = Math.floor(i / 9), c = i % 9, usati = new Set();
+      for (let j = 0; j < 9; j++) { usati.add(g[r * 9 + j]); usati.add(g[j * 9 + c]); }
+      const br = r - r % 3, bc = c - c % 3;
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) usati.add(g[(br + a) * 9 + bc + b]);
+      return [1,2,3,4,5,6,7,8,9].filter(n => !usati.has(n));
+    }
+    function passo() {
+      let migliore = -1, opzioni = null;
+      for (let i = 0; i < 81; i++) if (!g[i]) {
+        const p = possibili(i);
+        if (!opzioni || p.length < opzioni.length) { migliore = i; opzioni = p; if (p.length < 2) break; }
+      }
+      if (migliore < 0) return true;
+      for (const n of opzioni) { g[migliore] = n; if (passo()) return true; }
+      g[migliore] = 0; return false;
+    }
+    return passo() ? g : null;
+  }
+
+  disegna();
+})();
+</script>
+</body>
+</html>
